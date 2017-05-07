@@ -1,5 +1,3 @@
-package downUnderRMI;
-
 public class Jogador {
 	
 	private int id;

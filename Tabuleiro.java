@@ -1,5 +1,3 @@
-package downUnderRMI;
-
 public class Tabuleiro {
 	
 	private char[][] matrix;
@@ -13,7 +11,7 @@ public class Tabuleiro {
 		char[] linha = matrix[posicao];
 		
 		for(int i=0; i<linha.length; i++)
-			if (linha[i] == ' ') {
+			if (linha[i] == 0) {
 				linha[i] = esfera;
 				ultimasJogadas[0] = ultimasJogadas[1];
 				ultimasJogadas[1] = posicao;
@@ -25,7 +23,7 @@ public class Tabuleiro {
 
 	public boolean estaCompleto() {
 		for (int i=0; i<5; i++)
-			if (matrix[i][7] == ' ')
+			if (matrix[i][7] == 0)
 				return false;
 
 		return true;
@@ -35,25 +33,31 @@ public class Tabuleiro {
 		StringBuilder estado = new StringBuilder("");
 
 		if (estaCompleto()) {
-			for (int i=0; i<5; i++)
+			for (int i=0; i<5; i++) {
 				for (int j=0; j<8; j++)
 					estado.append(matrix[i][j]);
+				estado.append("\n");
+			}
 		} else {
 			for (int i=0; i<5; i++) {
-				if (matrix[i][8] == ' ')
+				if (matrix[i][7] == 0)
 					estado.append('-');
-				else estado.append(matrix[i][8]);
+				else estado.append(matrix[i][7]);
 			}
 
 			estado.append(".....");
 
 			if (ultimasJogadas[0] > -1)
-				estado.setCharAt(ultimasJogadas[0], '^');
+				estado.setCharAt(5 + ultimasJogadas[0], '^');
 
 			if (ultimasJogadas[1] > -1)
-				estado.setCharAt(ultimasJogadas[1], '^');
+				estado.setCharAt(5 + ultimasJogadas[1], '^');
 		}
 
 		return estado.toString();
+	}
+	
+	public char[][] getTabuleiro() {
+		return matrix;
 	}
 }

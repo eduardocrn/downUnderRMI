@@ -1,5 +1,3 @@
-package downUnderRMI;
-
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 

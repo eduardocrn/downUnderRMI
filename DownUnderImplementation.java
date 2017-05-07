@@ -1,14 +1,13 @@
-package downUnderRMI;
-
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+import java.util.UUID;
 
 public class DownUnderImplementation extends UnicastRemoteObject implements DownUnderInterface {
 	
 	private static int MAX_PARTIDAS = 50;
 	
-	private int idCount = 10;
+	private int idCount = 100;
 	
 	private static final long serialVersionUID = 189L;
 	
@@ -19,7 +18,7 @@ public class DownUnderImplementation extends UnicastRemoteObject implements Down
 
 	@Override
 	public int registraJogador(String nomeJogador) throws RemoteException {
-		if (partidas.size() == MAX_PARTIDAS*2)
+		if (partidas.size() == MAX_PARTIDAS)
 			return -2;
 		
 		Partida partidaExistente = buscaPartidaPorJogador(nomeJogador);
@@ -27,7 +26,9 @@ public class DownUnderImplementation extends UnicastRemoteObject implements Down
 		if (partidaExistente != null)
 			return -1;
 		
-		Jogador novo = new Jogador(nomeJogador, idCount);
+		Jogador novo = new Jogador(nomeJogador, idCount); 
+		
+		idCount++;
 		
 		if(!alocaJogador(novo))
 			return -2;
@@ -61,6 +62,11 @@ public class DownUnderImplementation extends UnicastRemoteObject implements Down
 			if(partida.statusPartida() == StatusPartida.AGUARDANDO)
 				return 0;
 			
+			if (partida.statusPartida() == StatusPartida.TIMEOUT) {
+				removePartidaPorJogador(idJogador);
+				return -2;
+			}
+			
 			if (partida.getJogador1().getId() == idJogador)
 				return 1;
 			else
@@ -80,6 +86,7 @@ public class DownUnderImplementation extends UnicastRemoteObject implements Down
 				case AGUARDANDO :
 					return -2;
 				case ENCERRADA :
+					// TODO: apagar partida depois dos dois jogadores consultarem
 					if (partida.getVencedor() == 0) // empate
 						return 4;
 					if (partida.getVencedor() == idjogador) { // ganhou
@@ -119,11 +126,6 @@ public class DownUnderImplementation extends UnicastRemoteObject implements Down
 
 	@Override
 	public int soltaEsfera(int idJogador, int posicao) throws RemoteException {
-		//  2 (partida encerrada, o que ocorrerá caso o jogador demore muito para enviar a sua
-		// jogada e ocorra o time­out de 60 segundos para envio de jogadas), 1 (tudo certo), 0 (movimento
-		// inválido, por exemplo, em um orifício que já  tem 8 esferas), ­1 (erro: número inválido de
-		// orifício), ­2 (partida não iniciada: ainda não há dois jogadores registrados na partida), ­3 (não é a
-		// vez do jogador).
 		Partida partida = buscaPartidaPorJogador(idJogador);
 
 		if (partida.statusPartida() == StatusPartida.AGUARDANDO)
@@ -154,6 +156,20 @@ public class DownUnderImplementation extends UnicastRemoteObject implements Down
 		return null;
 	}
 	
+	private Partida removePartidaPorJogador(int id) {
+		int index = -1;
+		
+		if (partidas.size() > 0)
+			for (int i=0; i<partidas.size(); i++)
+				if (partidas.get(i).verificaJogador(id))
+					index = i;
+		
+		if (index >= 0)
+			partidas.remove(index);
+		
+		return null;
+	}
+	
 	private Partida buscaPartidaPorJogador(String nomeJogador) {
 		for (Partida partida : partidas)
 			if (partida.verificaJogador(nomeJogador))
@@ -164,14 +180,20 @@ public class DownUnderImplementation extends UnicastRemoteObject implements Down
 
 	private boolean alocaJogador(Jogador jogador) {
 		// TODO: ADICIONAR TIMER PARA ESPERA DO SEGUNDO JOGADOR
-		Partida partidaDisponivel = partidas.get(partidas.size()-1);
+		Partida partidaDisponivel = null;
 		
-		if(partidaDisponivel.statusPartida() == StatusPartida.INICIADA) {
-			partidaDisponivel = new Partida(jogador);
-			partidas.add(partidaDisponivel);
-			return true;
-		} else
+		for (Partida partida : partidas)
+			if (partida.statusPartida() == StatusPartida.AGUARDANDO)
+				partidaDisponivel = partida;
+		
+		if (partidaDisponivel != null)
 			return partidaDisponivel.adicionaOponente(jogador);
+		
+		partidaDisponivel = new Partida(jogador);
+		partidas.add(partidaDisponivel);
+		
+		return true;
+			
 	}
 
 }

@@ -1,12 +1,12 @@
-package downUnderRMI;
-
 public class Partida {
 	
-	private Jogador[] jogadores;
+	private Jogador[] jogadores = new Jogador[2];
 	private Tabuleiro tabuleiro;
 	private StatusPartida status;
-	int jogadorAtual = -1;
-	int tipoVitoria = 0;
+	private int jogadorAtual = -1;
+	private int tipoVitoria = 0;
+	
+	private int countJogadas = 0;
 
 	
 	public Partida(Jogador jogador1) {
@@ -14,6 +14,7 @@ public class Partida {
 		status = StatusPartida.AGUARDANDO;
 
 		tabuleiro = new Tabuleiro();
+		timerSegundoJogador();
 	}
 
 	public Jogador getJogadorAtual() {
@@ -47,7 +48,7 @@ public class Partida {
 
 	public boolean verificaJogador(String nomeJogador) {
 		for (int i=0; i<2; i++)
-			if (jogadores[i] != null && jogadores[i].getNome() == nomeJogador)
+			if (jogadores[i] != null && jogadores[i].getNome().toLowerCase().equals(nomeJogador.toLowerCase()))
 				return jogadores[i].estaAtivo();
 
 		return false;
@@ -68,6 +69,8 @@ public class Partida {
 		jogadores[1] = jogador;
 
 		status = StatusPartida.INICIADA;
+		
+		jogadorAtual = 0;
 
 		return true;
 	}
@@ -79,6 +82,11 @@ public class Partida {
 	}
 
 	public boolean removeJogador(int idJogador) {
+		// TODO: aqui declarar oponente como ganhador
+		if (status == StatusPartida.INICIADA) {
+			
+		}
+		
 		status = StatusPartida.ENCERRADA;
 
 		for(int i=0; i<2; i++)
@@ -106,13 +114,47 @@ public class Partida {
 
 		int resultado = tabuleiro.colocaEsfera(esfera, posicao);
 
-		if (resultado == 1)
-			jogadorAtual = jogadores[0].getId() == idJogador ? 1 : 0;
+		if (resultado == 1) {
+			countJogadas++;
+			if (countJogadas == 2) {
+				jogadorAtual = jogadores[0].getId() == idJogador ? 1 : 0;
+				countJogadas = 0;
+			}
+		}
 
-		if (tabuleiro.estaCompleto())
+		if (tabuleiro.estaCompleto()) {
 			status = StatusPartida.ENCERRADA;
+			finalizaPartida();
+		}
 		
 		return resultado;
 	}
+	
+	private void timerSegundoJogador() {
+		new Thread() {
+			public void run() {
+				try {
+					Thread.sleep(5000);
+					
+					if (status == StatusPartida.AGUARDANDO) {
+						jogadores[0].desativar();
+						status = StatusPartida.TIMEOUT;
+					}
+						
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		}.start();
+	}
+	
+	private void finalizaPartida() {
+		char matriz[][] = tabuleiro.getTabuleiro();
+		
+		
+	}
+	
+	
+
 }
 
