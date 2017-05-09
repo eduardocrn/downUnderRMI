@@ -7,22 +7,25 @@ import java.util.UUID;
 
 public class Client {
 	
+	private static Scanner scanner;
+
 	public static void main(String[] args) throws InterruptedException {
 		try {
 			DownUnderInterface game = (DownUnderInterface)Naming.lookup("//localhost/DownUnder");
 			
-			Scanner scanner = new Scanner(System.in);
+			scanner = new Scanner(System.in);
             String nome;
             
-            // TODO: teste
-            int idJogador = game.registraJogador(UUID.randomUUID().toString());
-            // fim teste ///
+            // teste
+            if (args.length > 0 && args[0].equals("t")) {
+            	nome = UUID.randomUUID().toString();
+            } else {
+                System.out.println("Seu nome:");
+                nome = scanner.nextLine();
+            }
             
-            // System.out.println("Seu nome:");
-            // nome = scanner.nextLine();
-            // int idJogador = game.registraJogador(nome);
-			
-			
+            int idJogador = game.registraJogador(nome);
+            
 			if (idJogador == -1) {
 				System.out.println("Usuario ja cadastrado.");
 				return;
@@ -35,7 +38,7 @@ public class Client {
 				
 			System.out.println("Seu id: " + idJogador);
 			
-			ClientImplementation client = new ClientImplementation(game, idJogador);
+			ClientImplementation client = new ClientImplementation(game, idJogador, args.length > 0 && args[0].equals("t"));
 			
 			client.inicia();
 			

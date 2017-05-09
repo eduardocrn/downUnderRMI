@@ -1,9 +1,6 @@
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
-import java.sql.Date;
 import java.util.ArrayList;
-
-import com.sun.glass.ui.Timer;
 
 public class ServerImplementation extends UnicastRemoteObject implements DownUnderInterface {
 	
@@ -29,7 +26,10 @@ public class ServerImplementation extends UnicastRemoteObject implements DownUnd
 		if (partidaExistente != null)
 			return -1;
 		
-		Jogador novo = new Jogador(nomeJogador, idCount); 
+		String id = ("" + Math.random()).substring(2, 9);
+		id = idCount + id;
+		
+		Jogador novo = new Jogador(nomeJogador, Integer.parseInt(id)); 
 		
 		idCount++;
 		
@@ -179,7 +179,6 @@ public class ServerImplementation extends UnicastRemoteObject implements DownUnd
 	}
 
 	private synchronized boolean alocaJogador(Jogador jogador) {
-		// TODO: ADICIONAR TIMER PARA ESPERA DO SEGUNDO JOGADOR
 		Partida partidaDisponivel = null;
 		
 		for (Partida partida : partidas)

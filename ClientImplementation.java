@@ -12,10 +12,13 @@ public class ClientImplementation {
 
 	private Scanner scanner;
 	
-	public ClientImplementation(DownUnderInterface game, int idJogador) throws RemoteException, InterruptedException {
+	private boolean isTest;
+	
+	public ClientImplementation(DownUnderInterface game, int idJogador, boolean isTest) throws RemoteException, InterruptedException {
 		this.game = game;
 		this.idJogador = idJogador;
 		esfera = 0;
+		this.isTest = isTest;
 	}
 	
 	public void inicia() throws RemoteException, InterruptedException {
@@ -120,16 +123,17 @@ public class ClientImplementation {
 		int resultado = 0;
 		
 		try {			
-			// TODO: teste mode
-			ArrayList<Integer> posicoes = new ArrayList<Integer>(); 
-			for (int i=0; i<5; i++)
-				if (tabuleiro.charAt(i) == '-')
-					posicoes.add(i);
-			int randomPos = Math.round((float) Math.random() * posicoes.size());
-			orificio = posicoes.get(randomPos);
-			resultado =  game.soltaEsfera(idJogador, orificio);
-			System.out.println("Orificio: " + orificio);
-			/// fim teste///
+			//  teste mode
+			if (isTest) {
+				ArrayList<Integer> posicoes = new ArrayList<Integer>(); 
+				for (int i=0; i<5; i++)
+					if (tabuleiro.charAt(i) == '-')
+						posicoes.add(i);
+				int randomPos = Math.round((float) Math.random() * posicoes.size());
+				orificio = posicoes.get(randomPos);
+				resultado =  game.soltaEsfera(idJogador, orificio);
+				System.out.println("Orificio: " + orificio);
+			}
 			
 			while (resultado == 0 || resultado == -1) {
 				System.out.print("Orificio para jogada(digite 'exit' se deseja abandonar partida): ");
