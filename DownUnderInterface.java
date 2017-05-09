@@ -1,7 +1,7 @@
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
-public interface DownUnderInterface extends Remote{
+public interface DownUnderInterface extends Remote {
 	
 	public int registraJogador(String nomeJogador) throws RemoteException;
 	

@@ -123,6 +123,9 @@ public class Partida {
 	public int realizaJogada(int idJogador, int posicao) {
 		if (posicao < 0 || posicao > 4)
 			return -1;
+		
+		if (status != StatusPartida.INICIADA)
+			return 1;
 
 		char esfera = 'C';
 
@@ -169,9 +172,13 @@ public class Partida {
 			public void run() {
 				try {
 					Thread.sleep(60000);
+					
+					tempoEncerrada = System.currentTimeMillis();
 
-					if (status == StatusPartida.INICIADA)
+					if (status == StatusPartida.INICIADA) {
 						tipoVitoria = "WO_INTERROMPIDA";
+						vencedor = jogadorAtual == 0 ? jogadores[1] : jogadores[0];
+					}
 
 					status = StatusPartida.ENCERRADA;
 
