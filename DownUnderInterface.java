@@ -9,7 +9,7 @@ public interface DownUnderInterface extends Remote{
 	
 	public int temPartida(int idJogador) throws RemoteException;
 	
-	public int minhaVez(int idjogador) throws RemoteException;
+	public int ehMinhaVez(int idjogador) throws RemoteException;
 	
 	public String obtemTabuleiro(int idJogador) throws RemoteException;
 	

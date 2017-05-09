@@ -1,14 +1,15 @@
 public class Partida {
-	
+
 	private Jogador[] jogadores = new Jogador[2];
+	private Jogador vencedor;
 	private Tabuleiro tabuleiro;
 	private StatusPartida status;
 	private int jogadorAtual = -1;
-	private int tipoVitoria = 0;
-	
 	private int countJogadas = 0;
+	private String tipoVitoria = "NORMAL";
+	private Thread threadJogada;
+	private long tempoEncerrada;
 
-	
 	public Partida(Jogador jogador1) {
 		jogadores[0] = jogador1;
 		status = StatusPartida.AGUARDANDO;
@@ -24,30 +25,42 @@ public class Partida {
 		return jogadores[jogadorAtual];
 	}
 
-	public int getVencedor() {
-		// TODO: retorna vencedor
-		return 0;
-	}
+	public int getResultado(int idJogador) {
+		if (status != StatusPartida.ENCERRADA)
+			return -1; // erro
 
-	public int tipoVitoria() {
-		// TODO: retorna tipo da vitoria WO ou normal
-		return tipoVitoria;
+		if (vencedor == null) // empate
+			return 4;
+
+		if (vencedor.getId() == idJogador) { // ganhou
+			if (tipoVitoria == "NORMAL")
+				return 2;
+			return 5;
+		} else {
+			if (tipoVitoria == "NORMAL") // perdeu
+				return 3;
+			return 6;
+		}
+	}
+	
+	public long getTempoEncerrada() {
+		return tempoEncerrada;
 	}
 
 	public StatusPartida statusPartida() {
 		return status;
 	}
-	
+
 	public boolean verificaJogador(int id) {
-		for (int i=0; i<2; i++)
+		for (int i = 0; i < 2; i++)
 			if (jogadores[i] != null && jogadores[i].getId() == id)
-				return jogadores[i].estaAtivo();
+				return true;
 
 		return false;
 	}
 
 	public boolean verificaJogador(String nomeJogador) {
-		for (int i=0; i<2; i++)
+		for (int i = 0; i < 2; i++)
 			if (jogadores[i] != null && jogadores[i].getNome().toLowerCase().equals(nomeJogador.toLowerCase()))
 				return jogadores[i].estaAtivo();
 
@@ -69,34 +82,38 @@ public class Partida {
 		jogadores[1] = jogador;
 
 		status = StatusPartida.INICIADA;
-		
+
 		jogadorAtual = 0;
 
 		return true;
 	}
 
-	public String getOponente(int idJogador) {
+	public Jogador getOponente(int idJogador) {
 		if (jogadores[0].getId() == idJogador)
-			return jogadores[1].getNome();
-		return jogadores[0].getNome();
+			return jogadores[1];
+		return jogadores[0];
 	}
 
 	public boolean removeJogador(int idJogador) {
-		// TODO: aqui declarar oponente como ganhador
-		if (status == StatusPartida.INICIADA) {
-			
-		}
-		
+		if (status == StatusPartida.INICIADA)
+			vencedor = getOponente(idJogador);
+
+		tipoVitoria = "WO";
+
 		status = StatusPartida.ENCERRADA;
+		
+		tempoEncerrada = System.currentTimeMillis();
 
-		for(int i=0; i<2; i++)
-			if (jogadores[i] != null)
-				jogadores[i] = null;
+		removeJogadores();
 
-		if (jogadores[0] == null && jogadores[1] == null)
-			return true;
+		return true;
+	}
 
-		return false;
+	public void removeJogadores() {
+		jogadores[0].desativar();
+
+		if (jogadores[1] != null)
+			jogadores[1].desativar();
 	}
 
 	public String getTabuleiro() {
@@ -112,6 +129,11 @@ public class Partida {
 		if (jogadores[1].getId() == idJogador)
 			esfera = 'E';
 
+		if (threadJogada != null)
+			threadJogada.interrupt();
+
+		threadJogada = timerJogada();
+
 		int resultado = tabuleiro.colocaEsfera(esfera, posicao);
 
 		if (resultado == 1) {
@@ -121,40 +143,254 @@ public class Partida {
 				countJogadas = 0;
 			}
 		}
-
-		if (tabuleiro.estaCompleto()) {
-			status = StatusPartida.ENCERRADA;
-			finalizaPartida();
-		}
 		
+		if (tabuleiro.estaCompleto()) {
+			calculaPontuacao();
+			status = StatusPartida.ENCERRADA;
+			tempoEncerrada = System.currentTimeMillis();
+		}
+
 		return resultado;
 	}
-	
+
+	public synchronized void encerraPartida(int idJogador) {
+		removeJogadores();
+
+		if (status == StatusPartida.INICIADA)
+			tipoVitoria = "WO";
+
+		status = StatusPartida.ENCERRADA;
+		tempoEncerrada = System.currentTimeMillis();
+	}
+
+	private Thread timerJogada() {
+
+		Thread t = new Thread() {
+			public void run() {
+				try {
+					Thread.sleep(60000);
+
+					if (status == StatusPartida.INICIADA)
+						tipoVitoria = "WO_INTERROMPIDA";
+
+					status = StatusPartida.ENCERRADA;
+
+				} catch (InterruptedException e) {
+					if (tipoVitoria == "WO_INTERROMPIDA") {
+						tipoVitoria = "NORMAL";
+						status = StatusPartida.INICIADA;
+					}
+				}
+
+			}
+		};
+
+		t.start();
+
+		return t;
+	}
+
 	private void timerSegundoJogador() {
 		new Thread() {
 			public void run() {
 				try {
-					Thread.sleep(5000);
-					
+					Thread.sleep(120000);
+
 					if (status == StatusPartida.AGUARDANDO) {
 						jogadores[0].desativar();
 						status = StatusPartida.TIMEOUT;
+						tempoEncerrada = System.currentTimeMillis();
 					}
-						
+
 				} catch (InterruptedException e) {
-					e.printStackTrace();
 				}
 			}
 		}.start();
 	}
 	
-	private void finalizaPartida() {
-		char matriz[][] = tabuleiro.getTabuleiro();
+	private void calculaPontuacao() {
+		char board[][] = tabuleiro.getTabuleiro();
 		
+		int score[] = new int[]{0, 0}; // C, E
 		
+		int count[] = new int[]{0, 0}; // C, E
+		
+		// linha
+		for (int row = 0; row < 5; row++) {
+			for (int col = 0; col < 8 ; col ++) {
+				if (board[row][col] == 'C') {
+					count[0]++;
+					
+					if (count[1] >= 4)
+						score[1] += count[1]-3;
+					
+					count[1] = 0;
+				}
+				else if (board[row][col] == 'E') {
+					count[1]++;
+
+					if (count[0] >= 4)
+						score[0] += count[0]-3;
+					
+					count[0] = 0;
+				}
+			}
+			
+			if (count[0] >= 4)
+				score[0] += count[0]-3;
+			if (count[1] >= 4)
+				score[1] += count[1]-3;
+
+			count = new int[]{0, 0};
+		}
+		
+		count = new int[]{0, 0};
+		
+		// coluna
+		for (int col = 0; col < 8 ; col ++) {
+			for (int row = 0; row < 5; row++) {
+				if (board[row][col] == 'C') {
+					count[0]++;
+					
+					if (count[1] >= 4)
+						score[1] += count[1]-3;
+					
+					count[1] = 0;
+				}
+				else if (board[row][col] == 'E') {
+					count[1]++;
+
+					if (count[0] >= 4)
+						score[0] += count[0]-3;
+					
+					count[0] = 0;
+				}
+			}
+			
+			if (count[0] >= 4)
+				score[0] += count[0]-3;
+			if (count[1] >= 4)
+				score[1] += count[1]-3;
+
+			count = new int[]{0, 0};
+		}
+		
+		count = new int[]{0, 0};
+		
+		// diagonal principal       
+        for(int col = 7; col>= 0; col--){
+            for(int row = 0; row< 5; row++){
+                if((col + row) < 8){
+                	if (board[row][col + row] == 'C') {
+    					count[0]++;
+    					
+    					if (count[1] >= 4)
+    						score[1] += count[1]-3;
+    					
+    					count[1] = 0;
+    				}
+    				else if (board[row][col + row] == 'E') {
+    					count[1]++;
+
+    					if (count[0] >= 4)
+    						score[0] += count[0]-3;
+    					
+    					count[0] = 0;
+    				}
+                } else {
+                    break;
+                }
+            }
+
+			if (count[0] >= 4)
+				score[0] += count[0]-3;
+			if (count[1] >= 4)
+				score[1] += count[1]-3;
+
+			count = new int[]{0, 0};
+        }
+        count = new int[]{0, 0};
+        for(int i = 1; i < 5; i++){
+            for(int row = i, col = 0; row < 5 && col < 8; row++, col++){
+            	if (board[row][col] == 'C') {
+					count[0]++;
+					
+					if (count[1] >= 4)
+						score[1] += count[1]-3;
+					
+					count[1] = 0;
+				}
+				else if (board[row][col] == 'E') {
+					count[1]++;
+
+					if (count[0] >= 4)
+						score[0] += count[0]-3;
+					
+					count[0] = 0;
+				}
+            }
+        }
+        
+        count = new int[]{0, 0};
+        
+        // diagonal secundaria
+		for(int col = 7; col >= 0; col--) {
+			for(int row = 0; row < 5; row++) {
+                if((col - row) < 8 && (col - row) >= 0) {
+                	if (board[row][col - row] == 'C') {
+    					count[0]++;
+    					
+    					if (count[1] >= 4)
+    						score[1] += count[1]-3;
+    					
+    					count[1] = 0;
+    				}
+    				else if (board[row][col - row] == 'E') {
+    					count[1]++;
+
+    					if (count[0] >= 4)
+    						score[0] += count[0]-3;
+    					
+    					count[0] = 0;
+    				}
+                } else {
+                    break;
+                }
+            }
+
+			if (count[0] >= 4)
+				score[0] += count[0]-3;
+			if (count[1] >= 4)
+				score[1] += count[1]-3;
+
+			count = new int[]{0, 0};
+        }
+		count = new int[]{0, 0};
+        for(int i = 1; i < 5; i++){
+            for(int row = i, col = 7; row < 5 && col >= 0; row++, col--){
+            	if (board[row][col] == 'C') {
+					count[0]++;
+					
+					if (count[1] >= 4)
+						score[1] += count[1]-3;
+					
+					count[1] = 0;
+				}
+				else if (board[row][col] == 'E') {
+					count[1]++;
+
+					if (count[0] >= 4)
+						score[0] += count[0]-3;
+					
+					count[0] = 0;
+				}
+            }
+        }
+		
+		if (score[0] > score[1])
+			vencedor = jogadores[0];
+		else
+			vencedor = jogadores[1];
 	}
-	
-	
 
 }
-

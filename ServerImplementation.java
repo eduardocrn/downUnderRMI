@@ -1,9 +1,11 @@
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
+import java.sql.Date;
 import java.util.ArrayList;
-import java.util.UUID;
 
-public class DownUnderImplementation extends UnicastRemoteObject implements DownUnderInterface {
+import com.sun.glass.ui.Timer;
+
+public class ServerImplementation extends UnicastRemoteObject implements DownUnderInterface {
 	
 	private static int MAX_PARTIDAS = 50;
 	
@@ -13,7 +15,8 @@ public class DownUnderImplementation extends UnicastRemoteObject implements Down
 	
 	private ArrayList<Partida> partidas = new ArrayList<>();
 	
-	public DownUnderImplementation() throws RemoteException {
+	public ServerImplementation() throws RemoteException {
+		timerPartida();
 	}
 
 	@Override
@@ -38,18 +41,13 @@ public class DownUnderImplementation extends UnicastRemoteObject implements Down
 
 	@Override
 	public int encerraPartida(int idJogador) throws RemoteException {
-		int indexPartida = -1;
 		
-		for (int i=0;i<partidas.size();i++)
-			if (partidas.get(i).verificaJogador(idJogador))
-				indexPartida = i;
-		
-		if (indexPartida  < 0)
+		Partida p = buscaPartidaPorJogador(idJogador);
+				
+		if (p == null)
 			return -1;
 		
-		// apaga referencia so quando os dois jogadores deixam partida
-		if(partidas.get(indexPartida).removeJogador(idJogador))
-			partidas.remove(indexPartida);
+		p.encerraPartida(idJogador);
 		
 		return 0;
 	}
@@ -62,10 +60,8 @@ public class DownUnderImplementation extends UnicastRemoteObject implements Down
 			if(partida.statusPartida() == StatusPartida.AGUARDANDO)
 				return 0;
 			
-			if (partida.statusPartida() == StatusPartida.TIMEOUT) {
-				removePartidaPorJogador(idJogador);
+			if (partida.statusPartida() == StatusPartida.TIMEOUT)
 				return -2;
-			}
 			
 			if (partida.getJogador1().getId() == idJogador)
 				return 1;
@@ -78,7 +74,7 @@ public class DownUnderImplementation extends UnicastRemoteObject implements Down
 	}
 
 	@Override
-	public int minhaVez(int idjogador) throws RemoteException {
+	public int ehMinhaVez(int idjogador) throws RemoteException {
 		try {
 			Partida partida = buscaPartidaPorJogador(idjogador);
 
@@ -86,19 +82,9 @@ public class DownUnderImplementation extends UnicastRemoteObject implements Down
 				case AGUARDANDO :
 					return -2;
 				case ENCERRADA :
-					// TODO: apagar partida depois dos dois jogadores consultarem
-					if (partida.getVencedor() == 0) // empate
-						return 4;
-					if (partida.getVencedor() == idjogador) { // ganhou
-						if (partida.tipoVitoria() == 0)
-							return 2;
-						return 5;
-					}	
-					else {
-						if (partida.tipoVitoria() == 0) // perdeu
-							return 3;
-						return 6;
-					}
+					int res = partida.getResultado(idjogador);
+					
+					return res;
 				case INICIADA:
 					if (partida.getJogadorAtual().getId() == idjogador)
 						return 1;
@@ -134,7 +120,15 @@ public class DownUnderImplementation extends UnicastRemoteObject implements Down
 		if (partida.getJogadorAtual().getId() != idJogador)
 			return -3;
 		
-		return partida.realizaJogada(idJogador, posicao);
+		if (partida.statusPartida() == StatusPartida.TIMEOUT)
+			return 2;
+		
+		int resultado = partida.realizaJogada(idJogador, posicao);
+		
+		if (partida.statusPartida() == StatusPartida.ENCERRADA || partida.statusPartida() == StatusPartida.TIMEOUT)
+			partida.removeJogadores();
+		
+		return resultado;
 	}
 
 	@Override
@@ -142,13 +136,13 @@ public class DownUnderImplementation extends UnicastRemoteObject implements Down
 		try {
 			Partida partida = buscaPartidaPorJogador(idJogador);
 
-			return partida.getOponente(idJogador);
+			return partida.getOponente(idJogador).getNome();
 		} catch (Exception e) {
 			return "";
 		}
 	}
 	
-	private Partida buscaPartidaPorJogador(int id) {
+	private synchronized Partida buscaPartidaPorJogador(int id) {
 		for (Partida partida : partidas)
 			if (partida.verificaJogador(id))
 				return partida;
@@ -156,21 +150,27 @@ public class DownUnderImplementation extends UnicastRemoteObject implements Down
 		return null;
 	}
 	
-	private Partida removePartidaPorJogador(int id) {
-		int index = -1;
-		
-		if (partidas.size() > 0)
-			for (int i=0; i<partidas.size(); i++)
-				if (partidas.get(i).verificaJogador(id))
-					index = i;
-		
-		if (index >= 0)
-			partidas.remove(index);
-		
-		return null;
+	private synchronized void timerPartida() {
+		new Thread() {
+			public void run() {
+				try {
+					while (true) {
+						Thread.sleep(60000);
+						long now  = System.currentTimeMillis();
+						for (int i=0; i<partidas.size(); i++) {
+							if (partidas.get(i).statusPartida() == StatusPartida.ENCERRADA || partidas.get(i).statusPartida() == StatusPartida.TIMEOUT)
+								if (now - partidas.get(i).getTempoEncerrada() > 60000)
+									partidas.remove(i);
+						}
+					}
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		}.start();
 	}
 	
-	private Partida buscaPartidaPorJogador(String nomeJogador) {
+	private synchronized Partida buscaPartidaPorJogador(String nomeJogador) {
 		for (Partida partida : partidas)
 			if (partida.verificaJogador(nomeJogador))
 				return partida;
@@ -178,7 +178,7 @@ public class DownUnderImplementation extends UnicastRemoteObject implements Down
 		return null;
 	}
 
-	private boolean alocaJogador(Jogador jogador) {
+	private synchronized boolean alocaJogador(Jogador jogador) {
 		// TODO: ADICIONAR TIMER PARA ESPERA DO SEGUNDO JOGADOR
 		Partida partidaDisponivel = null;
 		

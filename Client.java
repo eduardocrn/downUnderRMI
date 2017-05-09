@@ -5,7 +5,7 @@ import java.rmi.RemoteException;
 import java.util.Scanner;
 import java.util.UUID;
 
-public class DownUnderClient {
+public class Client {
 	
 	public static void main(String[] args) throws InterruptedException {
 		try {
@@ -13,11 +13,14 @@ public class DownUnderClient {
 			
 			Scanner scanner = new Scanner(System.in);
             String nome;
+            
+            // TODO: teste
+            int idJogador = game.registraJogador(UUID.randomUUID().toString());
+            // fim teste ///
+            
             // System.out.println("Seu nome:");
             // nome = scanner.nextLine();
             // int idJogador = game.registraJogador(nome);
-
-			int idJogador = game.registraJogador(UUID.randomUUID().toString());
 			
 			
 			if (idJogador == -1) {
@@ -32,7 +35,9 @@ public class DownUnderClient {
 				
 			System.out.println("Seu id: " + idJogador);
 			
-			DownUnderClientGame client = new DownUnderClientGame(game, idJogador);
+			ClientImplementation client = new ClientImplementation(game, idJogador);
+			
+			client.inicia();
 			
 		} catch (MalformedURLException e) {
 			e.printStackTrace();

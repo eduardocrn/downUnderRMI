@@ -1,14 +1,14 @@
 public class Tabuleiro {
 	
-	private char[][] matrix;
+	private char[][] board;
 	private int[] ultimasJogadas = new int[]{-1, -1};
 	
 	public Tabuleiro() {
-		matrix = new char[5][8];
+		board = new char[5][8];
 	}
 	
 	public int colocaEsfera(char esfera, int posicao) {
-		char[] linha = matrix[posicao];
+		char[] linha = board[posicao];
 		
 		for(int i=0; i<linha.length; i++)
 			if (linha[i] == 0) {
@@ -23,7 +23,7 @@ public class Tabuleiro {
 
 	public boolean estaCompleto() {
 		for (int i=0; i<5; i++)
-			if (matrix[i][7] == 0)
+			if (board[i][7] == 0)
 				return false;
 
 		return true;
@@ -34,15 +34,18 @@ public class Tabuleiro {
 
 		if (estaCompleto()) {
 			for (int i=0; i<5; i++) {
-				for (int j=0; j<8; j++)
-					estado.append(matrix[i][j]);
+				for (int j=0; j<8; j++) {
+					estado.append(board[i][j]);
+					estado.append('|');
+				}
 				estado.append("\n");
+				estado.append("- - - - - - - -\n");
 			}
 		} else {
 			for (int i=0; i<5; i++) {
-				if (matrix[i][7] == 0)
+				if (board[i][7] == 0)
 					estado.append('-');
-				else estado.append(matrix[i][7]);
+				else estado.append(board[i][7]);
 			}
 
 			estado.append(".....");
@@ -58,6 +61,6 @@ public class Tabuleiro {
 	}
 	
 	public char[][] getTabuleiro() {
-		return matrix;
+		return board;
 	}
 }

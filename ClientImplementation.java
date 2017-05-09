@@ -2,7 +2,7 @@ import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Scanner;
 
-public class DownUnderClientGame {
+public class ClientImplementation {
 	
 	private DownUnderInterface game;
 	
@@ -12,14 +12,13 @@ public class DownUnderClientGame {
 
 	private Scanner scanner;
 	
-	public DownUnderClientGame(DownUnderInterface game, int idJogador) throws RemoteException, InterruptedException {
+	public ClientImplementation(DownUnderInterface game, int idJogador) throws RemoteException, InterruptedException {
 		this.game = game;
 		this.idJogador = idJogador;
 		esfera = 0;
-		executa();
 	}
 	
-	private void executa() throws RemoteException, InterruptedException {
+	public void inicia() throws RemoteException, InterruptedException {
 		int temPartida = game.temPartida(idJogador);
 		
 		if (temPartida == 0)
@@ -27,7 +26,7 @@ public class DownUnderClientGame {
 
 		// Aguarda ate partida iniciar
 		while (temPartida == 0) {
-			Thread.sleep(4000);
+			Thread.sleep(3000);
 			temPartida = game.temPartida(idJogador);
 		}
 		
@@ -59,7 +58,7 @@ public class DownUnderClientGame {
 		int minhaVez = 0;
 
 		while (true) {
-			minhaVez = game.minhaVez(idJogador);
+			minhaVez = game.ehMinhaVez(idJogador);
 			
 			switch (minhaVez) {
 			case -2:
@@ -74,10 +73,11 @@ public class DownUnderClientGame {
 			case 1 :
 				int resultado = realizaJogada();
 				
-				if (resultado == 2) {
+				if (resultado == 2)
 					System.out.println("Partida encerrada, voce demorou muito para jogar.");
-					return;
-				}
+				
+				if (resultado == -3)
+					System.out.println("Partida encerrada.");
 				
 				break;
 			case 2 :
@@ -113,40 +113,44 @@ public class DownUnderClientGame {
 		
 		scanner = new Scanner(System.in);
 		
-		System.out.print("Orificio para jogada: ");
+		String opcao =  "";
 		
 		int orificio = -1;
 		
 		int resultado = 0;
 		
-		// TODO: teste mode
-		ArrayList<Integer> posicoes = new ArrayList<Integer>(); 
-		for (int i=0; i<5; i++)
-			if (tabuleiro.charAt(i) == '-')
-				posicoes.add(i);
-		
-		try {		
-//			if(scanner.hasNextInt())
-//				orificio = scanner.nextInt();
-			// TODO: teste
+		try {			
+			// TODO: teste mode
+			ArrayList<Integer> posicoes = new ArrayList<Integer>(); 
+			for (int i=0; i<5; i++)
+				if (tabuleiro.charAt(i) == '-')
+					posicoes.add(i);
 			int randomPos = Math.round((float) Math.random() * posicoes.size());
 			orificio = posicoes.get(randomPos);
-			System.out.print(orificio);
-			
-			System.out.println();
-			
-			resultado = game.soltaEsfera(idJogador, orificio);
+			resultado =  game.soltaEsfera(idJogador, orificio);
+			System.out.println("Orificio: " + orificio);
+			/// fim teste///
 			
 			while (resultado == 0 || resultado == -1) {
+				System.out.print("Orificio para jogada(digite 'exit' se deseja abandonar partida): ");
+				
+				opcao = scanner.nextLine();
+				
+				if (opcao.toLowerCase().equals("exit")) {
+					game.encerraPartida(idJogador);
+					return -3;
+				}
+					
+				orificio = Integer.parseInt(opcao);
+				
+				System.out.println();
+				
+				resultado =  game.soltaEsfera(idJogador, orificio);
+				
 				if (resultado == 0)
 					System.out.println("Movimento invalido.");
 				if (resultado == -1)
 					System.out.println("Orifício invalido(0 < posicao < 4);");
-				
-				System.out.print("Orificio para jogada: ");
-				orificio = scanner.nextInt();
-				System.out.println();
-				resultado =  game.soltaEsfera(idJogador, orificio);
 			}
 		} catch (Exception e) {
 			System.out.println();
